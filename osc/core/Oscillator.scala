@@ -19,7 +19,7 @@ class Oscillator(_waveType: OscillatorType.Value = OscillatorType.Sine) extends 
   private var waveType  = _waveType
   
   // Output volume of the oscillator
-  private var volume = 1.0
+  private var volume = Math.pow(0.5, 2)
   
   // Is the oscillator on / off [ true / false ]
   var powerToggle = true 

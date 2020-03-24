@@ -8,47 +8,230 @@ import javafx.scene.input.KeyCode
 
 import audio.GlobalAudioSettings
 import osc.core.OscillatorGroup
+import modulation.AmplitudeMod
+import modulation.PhaseMod
 import audio.AudioPlayer
+import audio.AudioHandler
+import audio.AudioState
 
 object JavaxSwingLauncher extends App {
-  OscillatorGroup.mute = false
   AudioPlayer.playSound()
   val mainFrame = new JFrame("Audiosyntetisaattori -- Ohjelmointistudio 2")
   mainFrame.setLayout(new BoxLayout(mainFrame.getContentPane, BoxLayout.Y_AXIS))
-  val tooltip = new JLabel("PRESS A - L KEYS TO TRIGGER NOTES")
-  tooltip.setFont(new Font("Helvetica", Font.BOLD, 20))
-  tooltip.setAlignmentX(Component.CENTER_ALIGNMENT)
-  mainFrame.getContentPane.add(tooltip)
+  
+  val tooltip1 = new JLabel("PRESS A - L KEYS TO TRIGGER NOTES")
+  tooltip1.setFont(new Font("Helvetica", Font.BOLD, 20))
+  tooltip1.setAlignmentX(Component.CENTER_ALIGNMENT)
+  mainFrame.getContentPane.add(tooltip1)
+  
   mainFrame.getContentPane.add(UIFunctions.createOscillatorUI(1))
   mainFrame.getContentPane.add(UIFunctions.createOscillatorUI(2))
   mainFrame.getContentPane.add(UIFunctions.createOscillatorUI(3))
+  
+  val tooltip2 = new JLabel("MODULATION")
+  tooltip2.setFont(new Font("Helvetica", Font.BOLD, 20))
+  tooltip2.setAlignmentX(Component.CENTER_ALIGNMENT)
+  mainFrame.getContentPane.add(tooltip2)
+
+  // MODULATION UI -- AM
+  mainFrame.getContentPane.add({
+    val amMod = new JPanel(new FlowLayout(FlowLayout.CENTER))
+
+    val modLabel = new JLabel("AM")
+    modLabel.setFont(new Font("Helvetica", Font.BOLD, 15))
+    amMod.add(modLabel)
+
+    // waveform buttons
+    val sineButton = new JButton("sine")
+    val sawButton = new JButton("saw")
+    val squareButton = new JButton("square")
+    val triangleButton = new JButton("triangle")
+    val powerButton = new JButton("on / [off]")
+
+    sineButton.setName("sine")
+    sawButton.setName("saw")
+    squareButton.setName("square")
+    triangleButton.setName("triangle")
+    powerButton.setName("power")
+
+    sineButton.addActionListener(AMButtonListener)
+    sawButton.addActionListener(AMButtonListener)
+    squareButton.addActionListener(AMButtonListener)
+    triangleButton.addActionListener(AMButtonListener)
+    powerButton.addActionListener(AMButtonListener)
+
+    amMod.add(sineButton)
+    amMod.add(sawButton)
+    amMod.add(squareButton)
+    amMod.add(triangleButton)
+
+    // ratio slider for the modulator frequency
+    val ratioAmount = new JSlider(1, 4, 1)
+    ratioAmount.setMajorTickSpacing(1)
+    ratioAmount.setPaintTicks(true)
+    ratioAmount.setPaintLabels(true)
+    ratioAmount.addChangeListener(new ChangeListener {
+      def stateChanged(e: ChangeEvent) = {
+        val source = e.getSource.asInstanceOf[JSlider]
+        if (!source.getValueIsAdjusting) {
+          AmplitudeMod.setRatio(source.getValue)
+        }
+      }
+    })
+    amMod.add(ratioAmount)
+
+    // slider to select how much the modulation affects the sound
+    val fxAmount = new JSlider(0, 10, 10)
+    fxAmount.setMajorTickSpacing(5)
+    fxAmount.setMinorTickSpacing(1)
+    fxAmount.setPaintTicks(true)
+    fxAmount.setPaintLabels(true)
+    fxAmount.addChangeListener(new ChangeListener {
+      def stateChanged(e: ChangeEvent) = {
+        val slider = e.getSource.asInstanceOf[JSlider]
+        AmplitudeMod.setAmount(slider.getValue.toDouble / 10)
+      }
+    })
+    amMod.add(fxAmount)
+    amMod.add(powerButton)
+    amMod
+  })
+  //mainFrame.getContentPane.add({amMod})
+  // MODULATION -- AM END
+  
+  // MODULATION -- PM START
+  mainFrame.getContentPane.add({
+    val pmMod = new JPanel(new FlowLayout(FlowLayout.CENTER))
+
+    val modLabel = new JLabel("PM")
+    modLabel.setFont(new Font("Helvetica", Font.BOLD, 15))
+    pmMod.add(modLabel)
+
+    // waveform buttons
+    val sineButton = new JButton("sine")
+    val sawButton = new JButton("saw")
+    val squareButton = new JButton("square")
+    val triangleButton = new JButton("triangle")
+    val powerButton = new JButton("on / [off]")
+
+    sineButton.setName("sine")
+    sawButton.setName("saw")
+    squareButton.setName("square")
+    triangleButton.setName("triangle")
+    powerButton.setName("power")
+
+    sineButton.addActionListener(PMButtonListener)
+    sawButton.addActionListener(PMButtonListener)
+    squareButton.addActionListener(PMButtonListener)
+    triangleButton.addActionListener(PMButtonListener)
+    powerButton.addActionListener(PMButtonListener)
+
+    pmMod.add(sineButton)
+    pmMod.add(sawButton)
+    pmMod.add(squareButton)
+    pmMod.add(triangleButton)
+
+    // ratio slider for the modulator frequency
+    val ratioAmount = new JSlider(1, 4, 1)
+    ratioAmount.setMajorTickSpacing(1)
+    ratioAmount.setPaintTicks(true)
+    ratioAmount.setPaintLabels(true)
+    ratioAmount.addChangeListener(new ChangeListener {
+      def stateChanged(e: ChangeEvent) = {
+        val source = e.getSource.asInstanceOf[JSlider]
+        if (!source.getValueIsAdjusting) {
+          PhaseMod.setRatio(source.getValue)
+        }
+      }
+    })
+    pmMod.add(ratioAmount)
+
+    // slider to select how much the modulation affects the sound
+    val fxAmount = new JSlider(0, 10, 10)
+    fxAmount.setMajorTickSpacing(5)
+    fxAmount.setMinorTickSpacing(1)
+    fxAmount.setPaintTicks(true)
+    fxAmount.setPaintLabels(true)
+    fxAmount.addChangeListener(new ChangeListener {
+      def stateChanged(e: ChangeEvent) = {
+        val slider = e.getSource.asInstanceOf[JSlider]
+        PhaseMod.setAmount(slider.getValue.toDouble / 10)
+      }
+    })
+    pmMod.add(fxAmount)
+    pmMod.add(powerButton)
+    pmMod
+  })
+  // MODULATION -- PM END
   
   
   // HANDLES KEYBINGINDS
   val inputmap = mainFrame.getRootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
   val actionmap = mainFrame.getRootPane.getActionMap()
+    
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, false), "a")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, false), "w")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, false), "s")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_E, 0, false), "e")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, false), "d")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F, 0, false), "f")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_T, 0, false), "t")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_G, 0, false), "g")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, 0, false), "y")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_H, 0, false), "h")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_U, 0, false), "u")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_J, 0, false), "j")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_K, 0, false), "k")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_O, 0, false), "o")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_L, 0, false), "l")
   
-  inputmap.put(KeyStroke.getKeyStroke('a'), "a")
-  inputmap.put(KeyStroke.getKeyStroke('s'), "s")
-  inputmap.put(KeyStroke.getKeyStroke('d'), "d")
-  inputmap.put(KeyStroke.getKeyStroke('f'), "f")
-  inputmap.put(KeyStroke.getKeyStroke('g'), "g")
-  inputmap.put(KeyStroke.getKeyStroke('h'), "h")
-  inputmap.put(KeyStroke.getKeyStroke('j'), "j")
-  inputmap.put(KeyStroke.getKeyStroke('k'), "k")
-  inputmap.put(KeyStroke.getKeyStroke('l'), "l")
- 
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, true), "releaseA")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, true), "releaseW")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, true), "releaseS")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_E, 0, true), "releaseE")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, true), "releaseD")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F, 0, true), "releaseF")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_T, 0, true), "releaseT")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_G, 0, true), "releaseG")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, 0, true), "releaseY")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_H, 0, true), "releaseH")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_U, 0, true), "releaseU")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_J, 0, true), "releaseJ")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_K, 0, true), "releaseK")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_O, 0, true), "releaseO")
+  inputmap.put(KeyStroke.getKeyStroke(KeyEvent.VK_L, 0, true), "releaseL")
+
   
-  val keys = new KeyHandler
-  actionmap.put("a", keys)
-  actionmap.put("s", keys)
-  actionmap.put("d", keys)
-  actionmap.put("f", keys)
-  actionmap.put("g", keys)
-  actionmap.put("h", keys)
-  actionmap.put("j", keys)
-  actionmap.put("k", keys)
-  actionmap.put("l", keys)
+  actionmap.put("a", KeyPressHandler)
+  actionmap.put("w", KeyPressHandler)
+  actionmap.put("s", KeyPressHandler)
+  actionmap.put("e", KeyPressHandler)
+  actionmap.put("d", KeyPressHandler)
+  actionmap.put("f", KeyPressHandler)
+  actionmap.put("t", KeyPressHandler)
+  actionmap.put("g", KeyPressHandler)
+  actionmap.put("y", KeyPressHandler)
+  actionmap.put("h", KeyPressHandler)
+  actionmap.put("u", KeyPressHandler)
+  actionmap.put("j", KeyPressHandler)
+  actionmap.put("k", KeyPressHandler)
+  actionmap.put("o", KeyPressHandler)
+  actionmap.put("l", KeyPressHandler)
+  actionmap.put("releaseA", KeyReleaseHandler)
+  actionmap.put("releaseW", KeyReleaseHandler)
+  actionmap.put("releaseS", KeyReleaseHandler)
+  actionmap.put("releaseE", KeyReleaseHandler)
+  actionmap.put("releaseD", KeyReleaseHandler)
+  actionmap.put("releaseF", KeyReleaseHandler)
+  actionmap.put("releaseT", KeyReleaseHandler)
+  actionmap.put("releaseG", KeyReleaseHandler)
+  actionmap.put("releaseY", KeyReleaseHandler)
+  actionmap.put("releaseH", KeyReleaseHandler)
+  actionmap.put("releaseU", KeyReleaseHandler)
+  actionmap.put("releaseJ", KeyReleaseHandler)
+  actionmap.put("releaseK", KeyReleaseHandler)
+  actionmap.put("releaseO", KeyReleaseHandler)
+  actionmap.put("releaseL", KeyReleaseHandler)
   
   // Prepare and show GUI
   mainFrame.pack()
@@ -112,126 +295,5 @@ object UIFunctions extends GlobalAudioSettings {
     oscUI.add(powerButton)
     
     return oscUI
-  }
-}
-
-class OffsetSliderListener(val oscNum: Int) extends ChangeListener {
-  
-  val validOsc = if ( oscNum < 1 || oscNum > 3 ) false else true
-  
-  def stateChanged(e: ChangeEvent) = {
-    val source = e.getSource.asInstanceOf[JSlider]
-    
-    if (!source.getValueIsAdjusting && validOsc) {
-      val offsetValue = source.getValue
-      println("offset = " + offsetValue)
-      OscillatorGroup.setOffset(oscNum, offsetValue)
-    } 
-  } 
-}
-
-class VolumeSliderListener(val oscNum: Int) extends ChangeListener {
-
-  val validOsc = if ( oscNum < 1 || oscNum > 3 ) false else true
-  
-  def stateChanged(e: ChangeEvent) = {
-    val source = e.getSource.asInstanceOf[JSlider]
-    
-    if (!source.getValueIsAdjusting && validOsc) {
-      val volumeValue = source.getValue
-      println("volume = " + volumeValue)
-      OscillatorGroup.setVolume(oscNum, volumeValue)
-    } 
-  }
-}
-
-class ButtonListener(oscNum: Int) extends ActionListener {
-  import osc.core.OscillatorType
-  
-  def actionPerformed(e: ActionEvent) = {
-    val button = e.getSource.asInstanceOf[JButton]
-    button.getName() match {
-      case "sine"     => { OscillatorGroup.setType(oscNum, OscillatorType.Sine)
-                           OscillatorGroup.updateOscillator(oscNum) }
-      case "saw"      => { OscillatorGroup.setType(oscNum, OscillatorType.Saw)
-                           OscillatorGroup.updateOscillator(oscNum) }
-      case "square"   => { OscillatorGroup.setType(oscNum, OscillatorType.Square)
-                           OscillatorGroup.updateOscillator(oscNum) }
-      case "triangle" => { OscillatorGroup.setType(oscNum, OscillatorType.Triangle)
-                           OscillatorGroup.updateOscillator(oscNum) }
-      case "power"    => { OscillatorGroup.togglePower(oscNum)
-                           if ( button.getText() == "[on] / off" )
-                             button.setText("on / [off]")
-                           else
-                             button.setText("[on] / off")
-                                }
-    }
-  }
-}
-
-class KeyHandler extends AbstractAction {
-  
-  // keeps track of which key was pressed last
-  // if a key is pressed, multiple keypress events are fired which we dont want.
-  var currentKey: Char = '0' // 0 as a placeholder
-
-  def actionPerformed(e: ActionEvent) = {
-    e.getActionCommand match {
-      case "a" => {
-        if (currentKey != 'a') {
-          OscillatorGroup.setNoteNo(40)
-          currentKey = 'a'
-        }
-      }
-      case "s" => {
-        if (currentKey != 's') {
-          OscillatorGroup.setNoteNo(42)
-          currentKey = 's'
-        }
-      }
-      case "d" => {
-        if (currentKey != 'd') {
-          OscillatorGroup.setNoteNo(44)
-          currentKey = 'd'
-        }
-      }
-      case "f" => {
-        if (currentKey != 'f') {
-          OscillatorGroup.setNoteNo(45)
-          currentKey = 'f'
-        }
-      }
-      case "g" => {
-        if (currentKey != 'g') {
-          OscillatorGroup.setNoteNo(47)
-          currentKey = 'g'
-        }
-      }
-      case "h" => {
-        if (currentKey != 'h') {
-          OscillatorGroup.setNoteNo(49)
-          currentKey = 'h'
-        }
-      }
-      case "j" => {
-        if (currentKey != 'j') {
-          OscillatorGroup.setNoteNo(51)
-          currentKey = 'j'
-        }
-      }
-      case "k" => {
-        if (currentKey != 'k') {
-          OscillatorGroup.setNoteNo(52)
-          currentKey = 'k'
-        }
-      }
-      case "l" => {
-        if (currentKey != 'l') {
-          OscillatorGroup.setNoteNo(54)
-          currentKey = 'l'
-        }
-      }
-      case _ => { println("Something went wrong with the keyboard.") } // should never happen
-    }
   }
 }

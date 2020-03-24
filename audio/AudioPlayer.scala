@@ -9,11 +9,9 @@ import java.io.{ ByteArrayInputStream, InputStream }
  * I have taken some inspiration from the earlier Ohjelmointistudio 1 project Sound_2017 to play the sounds
  */
 object AudioPlayer extends GlobalAudioSettings {
-  //private var dataSource = osc.core.OscillatorGroup
   private var playing = false
 
-  val buffersize = 2000
-  private val audioBytes = Array.ofDim[Byte](buffersize)
+  private val audioBytes = Array.ofDim[Byte](bufferSize)
 
   // Correct formatting for our audio
   val audioFormat: AudioFormat = new AudioFormat(sampleRate, bitDepth, audioChannels, signed, bigEndian)
@@ -32,13 +30,13 @@ object AudioPlayer extends GlobalAudioSettings {
         val sourceDataLine = AudioSystem.getLine(dataLineInfo).asInstanceOf[SourceDataLine]
         try {
           // open the line and start it
-          sourceDataLine.open(audioFormat, buffersize)
+          sourceDataLine.open(audioFormat, bufferSize)
           sourceDataLine.start()
 
           var bytesRead = 0
 
           while (bytesRead != -1 && playing) {
-            bytesRead = OscillatorGroup.getSamples(audioBytes)
+            bytesRead = AudioHandler.getSamples(audioBytes)
             if (bytesRead > 0) {
               sourceDataLine.write(audioBytes, 0, bytesRead)
             }

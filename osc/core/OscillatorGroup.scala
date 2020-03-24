@@ -2,8 +2,13 @@ package osc.core
 
 import audio.GlobalAudioSettings
 import audio.ByteConverter
+import audio.AudioSource
+import audio.AudioHandler
+import audio.AudioState
+import modulation.AmplitudeMod
+import modulation.PhaseMod
 
-object OscillatorGroup extends GlobalAudioSettings {
+object OscillatorGroup extends GlobalAudioSettings with AudioSource {
   
   var mute = false
   
@@ -21,21 +26,34 @@ object OscillatorGroup extends GlobalAudioSettings {
   // range is 1 - 88
   private var noteNo = 49
   
+  private var notePlaying = false
   private var noteChange = false
   
-  // when a note changes, we store here the rest of the waveform, so it doesn't jump to straight 0
-  // but rather smoothly gets back to 0 before switching waveforms
-  private var noteChangeWaveform: Array[Byte] = Array[Byte](0, 0)
+  private var soundBuffer = Array.ofDim[Short](bufferSize / 2)
   
   def getNoteNo = noteNo
   
   // sets the note and updates the oscillators with corresponding frequencies
   def setNoteNo(x: Int) = {
-    this.noteChange = true
-    noteChangeWaveform = generateEndWave
+    if (notePlaying) {
+      this.getSamples(soundBuffer)
+      noteChange = true
+    } else {
+      this.noteNo = 1 max x min 88
+      AmplitudeMod.updateModWave()
+      PhaseMod.updateModWave()
+    }
+    
     this.noteNo = 1 max x min 88
     this.updateFrequency()
-    this.mute = false
+    this.notePlaying = true
+    this.samplePosition = 0
+    AudioHandler.setState(AudioState.Attack)
+  }
+  
+  def setMute() = {
+    this.notePlaying = false
+    AudioHandler.setState(AudioState.Release)
   }
   
   // updates frequencies and waveforms of all oscillators
@@ -73,31 +91,33 @@ object OscillatorGroup extends GlobalAudioSettings {
   def togglePower(oscNum: Int) = {
     this.oscillators(oscNum - 1).powerToggle = !this.oscillators(oscNum - 1).powerToggle
   }
- 
-  
+
   // fills the given byte array with audiodata from the oscillators.
-  // returns the amount of bytes that were written to the array in the parameter
-  def getSamples(bytes: Array[Byte]): Int = {
+  // returns the amount of samples that were written to the array in the parameter
+  def getSamples(data: Array[Short]): Int = {
     
-    // if a note has been changed, play the rest of the waveform before switching over
-    if (noteChange) {
-       for (i <- noteChangeWaveform.indices) {
-         bytes(i) = noteChangeWaveform(i)
-       }
-       noteChange = false
-       return noteChangeWaveform.length
+    // if we change notes, it cant just abruptly change the waveform. Got to send one buffer to release the note first.
+    if (this.noteChange) {
+      AudioHandler.setState(AudioState.Switch)
+      for ( i <- data.indices )
+        data(i) = this.soundBuffer(i)
+        
+      this.noteChange = false
+      AmplitudeMod.updateModWave()
+      PhaseMod.updateModWave()
+      return data.length
     }
     
-    // if note has been changed already, fill the buffer with audio normally.
-    val length = bytes.length / 2
-    
-    for ( i <- 0 until bytes.length by 2 ) {
-        val currentSample = ByteConverter.getByte(this.getSample(i/2))
-        bytes(i)   = currentSample._1
-        bytes(i+1) = currentSample._2
+    // if there is no note-switch, just fill the buffer normally
+    val length = data.length
+
+    for (i <- data.indices) {
+      val currentSample = this.getSample(i)
+      data(i) = currentSample
     }
+    
     this.samplePosition += length
-    return bytes.length
+    return data.length
   }
   
   // Calculates the sample from all 3 oscillators and returns the summed sample with the correct amplitude (this.maxVol)
@@ -110,28 +130,6 @@ object OscillatorGroup extends GlobalAudioSettings {
       finalSample += osc.getSample(currentSample)
     }
     return (finalSample * this.maxVol).toShort
-  }
-  
-  // generates the rest of the waveform, by cutting it.
-  // it will look for a spot where the samples go from negative to positive and cut it there.
-  // the volume (amplitude) of the waveform goes to 0 linearly by multiplying by (1 - i*step)
-  private def generateEndWave(): Array[Byte] = {
-    val size = 200
-    val step = 1.0 / size
-    val data = Array.ofDim[Short](size)
-    for ( i <- data.indices ) {
-      data(i) = (this.getSample(i)*(1 - i*step)).toShort
-    }
-    
-    // here we look for a spot where the waveform goes to 0 from below and cut it there-- D(f(x)) > 0 and then 0
-    var index = data.length
-    for ( i <- 0 until data.length - 1 ) {
-      if ( data(i) <= 0 && data(i + 1) >= 0) {
-        index = i
-      }
-    }
-    this.samplePosition = 0
-    return ByteConverter.getByteArray(data.take(index)) // return a byte-array.
   }
   
 }
